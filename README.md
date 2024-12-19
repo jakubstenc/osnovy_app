@@ -1,0 +1,2 @@
+# osnovy_app
+app
