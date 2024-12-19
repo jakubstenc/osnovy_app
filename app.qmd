@@ -1,0 +1,154 @@
+---
+title: "app"
+format: html
+editor: visual
+---
+
+## Osnovy
+
+```{r}
+library(shiny)
+library(DT)
+
+# Define the 8x8 grid labels
+cell_labels <- c("A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
+                 "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8",
+                 "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8",
+                 "D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8",
+                 "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8",
+                 "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
+                 "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8",
+                 "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8")
+
+# UI
+ui <- fluidPage(
+  titlePanel("Fieldwork Data Recording"),
+  
+  # Header with plot details
+  fluidRow(
+    column(4, selectInput("year", "Year", choices = 2020:2025)),
+    column(4, dateInput("date", "Date")),
+    column(4, selectInput("plot_id", "Plot ID", choices = c("Plot 1", "Plot 2", "Plot 3"))),
+    column(4, textInput("plot_name", "Plot Name", value = ""))
+  ),
+  
+  # Navigation buttons and selected cell display
+  fluidRow(
+    column(2, actionButton("prev_cell", "Previous Cell")),
+    column(2, actionButton("next_cell", "Next Cell")),
+    column(2, selectInput("jump_cell", "Go to Cell", choices = cell_labels)),
+    column(2, textOutput("current_cell"))
+  ),
+  
+  # Species selection and count input for current cell
+  fluidRow(
+    column(4, selectInput("species", "Species", choices = c("Species A", "Species B", "Species C"))),
+    column(4, numericInput("count", "Count", value = 0, min = 0)),
+    column(4, actionButton("add_species", "Add Species"))
+  ),
+  
+  # Submit button to save data
+  actionButton("save_data", "Save Data"),
+  
+  # Display the data table with color coding
+  fluidRow(
+    column(12, DTOutput("cell_table"))
+  )
+)
+
+# Server
+server <- function(input, output, session) {
+  
+  # Initialize data frame to store species and count data for 8x8 grid
+  plot_data <- reactiveVal(data.frame(Cell = character(),
+                                      Species = character(),
+                                      Count = numeric(),
+                                      Year = numeric(),
+                                      Date = character(),
+                                      PlotID = character(),
+                                      PlotName = character(),
+                                      stringsAsFactors = FALSE))
+  
+  # Track the current cell index
+  current_cell_index <- reactiveVal(1)
+  
+  # Update the current cell display
+  output$current_cell <- renderText({
+    current_cell <- cell_labels[current_cell_index()]
+    paste("Current Cell:", current_cell)
+  })
+  
+  # Function to navigate to the next/previous or selected cell
+  observeEvent(input$prev_cell, {
+    current_index <- current_cell_index()
+    if (current_index > 1) {
+      current_cell_index(current_index - 1)
+    }
+  })
+  
+  observeEvent(input$next_cell, {
+    current_index <- current_cell_index()
+    if (current_index < length(cell_labels)) {
+      current_cell_index(current_index + 1)
+    }
+  })
+  
+  observeEvent(input$jump_cell, {
+    selected_cell <- which(cell_labels == input$jump_cell)
+    current_cell_index(selected_cell)
+  })
+  
+  # Add species and count to the current cell
+  observeEvent(input$add_species, {
+    cell_data <- plot_data()
+    current_index <- current_cell_index()
+    current_cell <- cell_labels[current_index]
+    
+    # Append species and count data as a new row
+    new_row <- data.frame(Cell = current_cell,
+                          Species = input$species,
+                          Count = input$count,
+                          Year = input$year,
+                          Date = as.character(input$date),
+                          PlotID = input$plot_id,
+                          PlotName = input$plot_name,
+                          stringsAsFactors = FALSE)
+    updated_data <- rbind(cell_data, new_row)
+    plot_data(updated_data)
+  })
+  
+  # Render the table with cell data
+  output$cell_table <- renderDT({
+    cell_data <- plot_data()
+    
+    # Create a datatable
+    datatable(cell_data, escape = FALSE, options = list(scrollX = TRUE), 
+              rownames = FALSE) %>%
+      formatStyle("Cell", 
+                  backgroundColor = styleEqual(cell_labels, rep("lightblue", length(cell_labels))))
+  })
+  
+  # Save data action
+  observeEvent(input$save_data, {
+    # Get the data to save
+    data_to_save <- plot_data()
+    
+    # Define the filename with current date
+    file_name <- paste0("fieldwork_data_", Sys.Date(), ".csv")
+    
+    # Save the data to a CSV file
+    write.csv(data_to_save, file_name, row.names = FALSE)
+    
+    # Show modal to indicate data has been saved
+    showModal(modalDialog(
+      title = "Data Saved",
+      paste("Your data has been saved successfully as", file_name),
+      easyClose = TRUE
+    ))
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+```

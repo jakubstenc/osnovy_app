@@ -1,0 +1,12 @@
+name: myapp
+title: myapp
+username: lycanea
+account: lycanea
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13622975
+bundleId: 9546130
+url: https://lycanea.shinyapps.io/myapp/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
